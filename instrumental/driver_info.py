@@ -1,4 +1,4 @@
-# Auto-generated 2022-04-14T09:02:44.677733
+# Auto-generated 2023-05-11T16:24:33.769202
 from collections import OrderedDict
 
 driver_info = OrderedDict([
@@ -78,6 +78,11 @@ driver_info = OrderedDict([
         'visa_info': {
             'SR850': ('Stanford_Research_Systems', ['SR850']),
         },
+    }),
+    ('motion.BPC203', {
+        'params': ['serial'],
+        'classes': ['BPC203'],
+        'imports': ['System', 'Thorlabs', 'clr'],
     }),
     ('motion._kinesis.ff', {
         'params': ['serial'],
