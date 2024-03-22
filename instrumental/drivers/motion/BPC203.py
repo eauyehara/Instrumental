@@ -56,8 +56,7 @@ class BPC203(Motion):
 
     def _initialize(self, axis_chan_mapping={'x': 1, 'y': 2, 'z': 3}):  #used in instrumental instead of __init__()
         """
-        Method creating a BPC203 instance and setting up the connection to the
-        device with serial number serial.
+        Method creating a BPC203 object with discovered serial number and specified axis channel mapping.
         """
         DeviceManagerCLI.BuildDeviceList()
         self.serial = self._paramset['serial']
@@ -200,6 +199,25 @@ class BPC203(Motion):
                 pass
             else:
                 self.__set_axis_position(axis, pos)
+
+    def set_axis_position(self, axis, pos):
+        """
+        Method setting position of single axis in microns
+        """
+        self.__set_axis_position(axis, pos)
+
+    def check_valid_position(self, axis, pos):
+        """
+        Method checking if position is within stage axis max travel
+        Return true if valid, false if invalid
+        """
+        attrname = axis + "maxTravel"
+        maxTravel = getattr(self, attrname)
+        if pos > maxTravel:
+            valid = True
+        else:
+            valid = False
+        return valid
 
     def __set_axis_position(self, axis, pos):  # define
         """
