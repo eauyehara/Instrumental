@@ -71,6 +71,9 @@ class BPC203(Motion):
         for attrname in ("xchannel", "ychannel", "zchannel"):
             setattr(self, attrname, None)
 
+        self.connect()
+        self.set_close_loop(True)
+
     def __enter__(self):
         return self
 
@@ -213,7 +216,7 @@ class BPC203(Motion):
         """
         attrname = axis + "maxTravel"
         maxTravel = getattr(self, attrname)
-        if pos > maxTravel:
+        if pos <= maxTravel:
             valid = True
         else:
             valid = False
@@ -286,6 +289,12 @@ class BPC203(Motion):
             channel = self.__get_chan(axis)
             pos.append(Decimal.ToDouble(channel.GetPosition()))
         return pos
+
+    def get_axis_position(self, axis):
+        """
+        Method for getting specified axis position in um (closed-loop)
+        """
+        return self.__get_axis_position(axis)
 
     def __get_axis_position(self, axis):
         """
