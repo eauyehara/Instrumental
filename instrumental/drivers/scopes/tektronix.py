@@ -5,18 +5,17 @@ Driver module for Tektronix oscilloscopes.
 """
 import datetime as dt
 
-import visa
-from pyvisa.constants import InterfaceType
 import numpy as np
+import pyvisa
 from pint import UndefinedUnitError
+from pyvisa.constants import InterfaceType
 
-from . import Scope
-from .. import VisaMixin, SCPI_Facet, Facet
-from ..util import visa_context
-from ...util import to_str
+from ... import Q_, u
 from ...errors import Error
-from ... import u, Q_
-
+from ...util import to_str
+from .. import Facet, SCPI_Facet, VisaMixin
+from ..util import visa_context
+from . import Scope
 
 MODEL_CHANNELS = {
     'TDS 210': 2,
@@ -73,6 +72,7 @@ MODEL_CHANNELS = {
     'MSO4034': 4,
     'DPO4034': 4,
     'MSO4054': 4,
+    'DPO4054B': 4,
     'DPO4054': 4,
     'MSO4104': 4,
     'DPO4104': 4,
@@ -265,9 +265,9 @@ class TekScope(Scope, VisaMixin):
         return units
 
     def _read_curve(self, width):
-        with self.resource.ignore_warning(visa.constants.VI_SUCCESS_MAX_CNT),\
+        with self.resource.ignore_warning(pyvisa.constants.VI_SUCCESS_MAX_CNT),\
             visa_context(self.resource, timeout=10000, read_termination=None,
-                         end_input=visa.constants.SerialTermination.none):
+                         end_input=pyvisa.constants.SerialTermination.none):
 
             self.write("curve?")
             visalib = self.resource.visalib
@@ -607,7 +607,18 @@ class MSO_DPO_4000(StatScope):
     """A Tektronix MSO/DPO 4000 series oscilloscope."""
     _INST_PARAMS_ = ['visa_address']
     _INST_VISA_INFO_ = ('TEKTRONIX', ['MSO4032', 'DPO4032', 'MSO4034', 'DPO4034',
-                                      'MSO4054', 'DPO4054', 'MSO4104', 'DPO4104',])
+                                      'MSO4054', 'DPO4054', 'MSO4104', 'DPO4104',
+                                      'DPO4054B',])
+    max_waveform_length = 10_000_000
+    datetime = TekScope._datetime
+
+class MSO_DPO_7000(StatScope):
+    """A Tektronix DPO 7000 series oscilloscope."""
+    _INST_PARAMS_ = ['visa_address']
+    _INST_VISA_INFO_ = ('TEKTRONIX', ['DPO7054',])
+    max_waveform_length = 20_000_000
+    waveform_length = SCPI_Facet('HORizontal:ACQLENGTH', convert=int, readonly=True,
+                                 doc="Record length of the source waveform")
     datetime = TekScope._datetime
 
 
