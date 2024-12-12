@@ -298,6 +298,17 @@ class BPC203(Motion):
             print("\t- axis invalid)")
         return pos
 
+    def get_axis_position(self, axis):
+        """
+        Internal method for retrieving axis position of single axis in closed loop mode
+        """
+        if axis in ("x", "y", "z"):
+            channel = self.__get_chan(axis)
+            pos = Decimal.ToDouble(channel.GetPosition())
+        else:
+            print("\t- axis invalid)")
+        return pos
+
     def close(self):
         """
         Method for shutting down the connection to the physical instrument
