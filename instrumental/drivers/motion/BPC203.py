@@ -213,7 +213,7 @@ class BPC203(Motion):
         """
         attrname = axis + "maxTravel"
         maxTravel = getattr(self, attrname)
-        if pos > maxTravel:
+        if pos < maxTravel:
             valid = True
         else:
             valid = False
