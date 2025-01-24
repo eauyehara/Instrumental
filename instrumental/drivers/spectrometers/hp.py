@@ -45,7 +45,7 @@ class HPOSA(Spectrometer, VisaMixin):
         self.write('CF {:4.5f}NM'.format(cf_nm))
 
     def get_center_wavelength(self):
-        cf = (np.float(self.query('CF?')) * u.m).to(u.nm)
+        cf = (float(self.query('CF?')) * u.m).to(u.nm)
         return cf
 
     def set_wavelength_span(self,sp):
@@ -53,7 +53,7 @@ class HPOSA(Spectrometer, VisaMixin):
         self.write('SP {:4.5f}NM'.format(sp_nm))
 
     def get_wavelength_span(self):
-        sp = (np.float(self.query('SP?')) * u.m).to(u.nm)
+        sp = (float(self.query('SP?')) * u.m).to(u.nm)
         return sp
 
     def set_resolution_bandwidth(self,rb):
@@ -61,7 +61,7 @@ class HPOSA(Spectrometer, VisaMixin):
         self.write('RB {:4.5f}NM'.format(rb_nm))
 
     def get_resolution_bandwidth(self):
-        rb = (np.float(self.query('RB?')) * u.m).to(u.nm)
+        rb = (float(self.query('RB?')) * u.m).to(u.nm)
         return rb
 
     def set_amplitude_units(self,au):
@@ -107,7 +107,7 @@ class HPOSA(Spectrometer, VisaMixin):
                 self.write('RL {:3.3E} mW'.format(ref_level.to(u.milliwatt).magnitude))
 
     def get_sensitivity(self):
-        sens_dbm = np.float(self.query('SENS?'))
+        sens_dbm = float(self.query('SENS?'))
         sens = (10**(sens_dbm/10.0) * u.milliwatt).to(u.watt)
         return sens
 
@@ -330,3 +330,42 @@ class HPOSA(Spectrometer, VisaMixin):
             Number of samples used to compute measurements
         """
         self.inst.write("measu:stati:weighting {}".format(nsamps))
+
+    def get_peak_info(self, peak_id=['HIP', 'NH']):
+        """
+        Find the peak of the spectra and returns the frequency and the amplitude in a list
+        :param peak_id: Type of peak to look for.
+                'CP': closest peak
+                'CPIT': closest pit
+                'HI': highest point on the trace
+                'HIP': highest peak
+                'MI': minimum peak (NOT the same as the minimum point!)
+                'MIPIT': lowest pit
+                'NH': next highest signal level detected
+                'NHPIT': next highest pit
+                'NL': next signal peak to the left
+                'NLPIT': next signal pit to the left.
+                'NM': next minimum peak
+                'NMPIT: next lowest pit.
+                'NR': next peak to the right
+                'NRPIT': next pit to the right
+        :return:
+        """
+        pk_wl = []
+        pk_amp = []
+
+        self._rsrc.timeout = 5000
+        for pk in peak_id:
+            self.write('TS;DONE?;')
+            self.write('MK;')  # position a marker
+            self.write('MKPK %s;' % pk)  # move the marker to the peak
+
+            amp = self.query('MKA?;')
+            wl = self.query('MKF?;')
+
+            pk_wl.append(float(wl))
+            pk_amp.append(float(amp))
+
+        self._rsrc.timeout = 300
+
+        return [pk_wl*u.m, Q_(pk_amp, 'dBm')]
