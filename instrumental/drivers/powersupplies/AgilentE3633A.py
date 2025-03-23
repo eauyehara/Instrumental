@@ -9,7 +9,7 @@ from instrumental.drivers import ParamSet
 from instrumental import Q_, u
 
 # GPIB_ADDR = "GPIB0::5::INSTR"  # VISA adress
-DEFAULT_CURRENT_LIMIT = 0.5  # Default current limit in A
+DEFAULT_CURRENT_LIMIT = 0.5 * u.A  # Default current limit in A
 
 def list_instruments():
     """Get a list of all power supplies currently attached"""
@@ -82,10 +82,10 @@ class AgilentE3633A(PowerSupply, VisaMixin):
         :return:
         """
         if volt_range == 'P8V':
-            self.write("VOLT:RANG %s" %volt_range)
+            self.write("VOLT:RANG %s" %(volt_range).to(u.V).m)
             print('Setting Voltage Range to 8V')
         elif volt_range == 'P20V':
-            self.write("VOLT:RANG %s" % volt_range)
+            self.write("VOLT:RANG %s" % (volt_range).to(u.V).m)
             print('Setting Voltage Range to 20V')
         else:
             print('Not a valid voltage range. Enter "P8V" or "P20V"')
@@ -96,7 +96,7 @@ class AgilentE3633A(PowerSupply, VisaMixin):
         :return: volt_range
         """
         volt_range = self.query('VOLT:RANG?')
-        return volt_range
+        return volt_range * u.V
 
 
     def measure_voltage(self):
@@ -105,7 +105,7 @@ class AgilentE3633A(PowerSupply, VisaMixin):
         :return: measured voltage
         """
         meas_v = float(self.query('MEAS:VOLT?'))
-        return meas_v
+        return meas_v * u.V
 
 
     def measure_current(self):
@@ -114,7 +114,7 @@ class AgilentE3633A(PowerSupply, VisaMixin):
         :return: measured current
         """
         meas_i = float(self.query('MEAS:CURR?'))
-        return meas_i
+        return meas_i * u.A
 
 
     def set_voltage(self, voltage):
@@ -123,8 +123,8 @@ class AgilentE3633A(PowerSupply, VisaMixin):
         :param voltage:
         :return:
         """
-        if voltage >= 0 and voltage <= 20:
-            self.write(":SOUR:VOLT %.6E" % voltage)
+        if voltage.m >= 0 and (voltage).to(u.V).m <= 20:
+            self.write(":SOUR:VOLT %.6E" % (voltage).to(u.V).m)
         else:
             print('Not a valid voltage entry. Enter a value between 0 and 20V')
 
@@ -140,7 +140,7 @@ class AgilentE3633A(PowerSupply, VisaMixin):
         """
         if self.OUTPUT_on:
             self.turn_output_off()
-        self.write(":SOUR:CURR %.6E" % current_limit)
+        self.write(":SOUR:CURR %.6E" % (current_limit).to(u.A).m)
 
     def set_volt_protection(self, volt_level):
         """
@@ -151,13 +151,13 @@ class AgilentE3633A(PowerSupply, VisaMixin):
         volt_range = self.measure_volt_range()
 
         if volt_range == 'P8V':
-            if volt_level >= 0 and volt_level <= 8.24:
-                self.write("VOLT:PROT:LEV  %.6E" % volt_level)
+            if volt_level.m >= 0 and (volt_level).to(u.V).m <= 8.24:
+                self.write("VOLT:PROT:LEV  %.6E" % (volt_level).to(u.V).m)
             else:
                 print('Specified voltage level is not valid for 8V voltage range (0-8.24V)')
         elif volt_range == 'P20V':
-            if volt_level >= 0 and volt_level <= 20.6:
-                self.write("VOLT:PROT:LEV  %.6E" % volt_level)
+            if volt_level >= 0 and (volt_level).to(u.V).m <= 20.6:
+                self.write("VOLT:PROT:LEV  %.6E" % (volt_level).to(u.V).m)
             else:
                 print('Specified voltage level is not valid for 20V voltage range (0-20.6V)')
 
@@ -171,13 +171,13 @@ class AgilentE3633A(PowerSupply, VisaMixin):
         volt_range = self.measure_volt_range()
 
         if volt_range == 'P8V':
-            if curr_level >= 0 and curr_level <= 20:
-                self.write("CURR:PROT:LEV  %.6E" % curr_level)
+            if curr_level >= 0 and (curr_level).to(u.A).m <= 20:
+                self.write("CURR:PROT:LEV  %.6E" % (curr_level).to(u.A).m)
             else:
                 print('Specified current level is not valid for 8V current range (0-20A)')
         elif volt_range == 'P20V':
-            if curr_level >= 0 and curr_level <= 10:
-                self.write("CURR:PROT:LEV  %.6E" % curr_level)
+            if curr_level >= 0 and (curr_level).to(u.A).m <= 10:
+                self.write("CURR:PROT:LEV  %.6E" % (curr_level).to(u.A).m)
             else:
                 print('Specified current level is not valid for 20V current range (0-10A)')
 
@@ -187,7 +187,7 @@ class AgilentE3633A(PowerSupply, VisaMixin):
         :return:
         """
         volt_level = float(self.query('VOLT:PROT:LEV?'))
-        return volt_level
+        return volt_level * u.V
 
     def meas_curr_protection(self):
         """
@@ -195,7 +195,7 @@ class AgilentE3633A(PowerSupply, VisaMixin):
         :return:
         """
         curr_level = float(self.query('CURR:PROT:LEV?'))
-        return curr_level
+        return curr_level * u.A
 
     def clear_overvolt_condition(self):
         """
