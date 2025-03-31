@@ -56,6 +56,11 @@ class HPOSA(Spectrometer, VisaMixin):
         sp = (float(self.query('SP?')) * u.m).to(u.nm)
         return sp
 
+    def get_sweep_time(self):
+        self._rsrc.timeout = 5000
+        st = (float(self.query('ST?')) * u.s)
+        return st
+
     def set_resolution_bandwidth(self,rb):
         rb_nm = rb.to(u.nm).magnitude
         self.write('RB {:4.5f}NM'.format(rb_nm))
@@ -112,116 +117,104 @@ class HPOSA(Spectrometer, VisaMixin):
         return sens
 
     def get_spectrum(self,trace='A'):
-        self._rsrc.timeout = 10000
+        self._rsrc.timeout = 15000
         au = self.get_amplitude_units()
         wl_center = self.get_center_wavelength()
         wl_span = self.get_wavelength_span()
+        self.write('TS;DONE?')
+        # self.write('VIEW TR%s' % trace)
         amp = np.fromstring(self.query('TR'+trace+'?'),sep=',') * au
         wl_start = wl_center - wl_span / 2.0
         wl_stop = wl_center + wl_span / 2.0
         n_pts = len(amp)
         wl = Q_(np.linspace(wl_start.magnitude,wl_stop.magnitude,n_pts),wl_start.units)
         self._rsrc.timeout = 300
+        self.write('CLRW TR%s' % trace)
         return wl, amp
 
-    def get_data(self, channel=1):
-        """Retrieve a trace from the scope.
-
-        Pulls data from channel `channel` and returns it as a tuple ``(t,y)``
-        of unitful arrays.
-
-        Parameters
-        ----------
-        channel : int, optional
-            Channel number to pull trace from. Defaults to channel 1.
-
-        Returns
-        -------
-        t, y : pint.Quantity arrays
-            Unitful arrays of data from the scope. ``t`` is in seconds, while
-            ``y`` is in volts.
-        """
-        inst = self.inst
-
-        inst.write("data:source ch{}".format(channel))
-        stop = int(inst.query("wfmpre:nr_pt?"))  # Get source's number of points
-        stop = 10000
-        inst.write("data:width 2")
-        inst.write("data:encdg RIBinary")
-        inst.write("data:start 1")
-        inst.write("data:stop {}".format(stop))
-
-        #inst.flow_control = 1  # Soft flagging (XON/XOFF flow control)
-        tmo = inst.timeout
-        inst.timeout = 10000
-        inst.write("curve?")
-        inst.read_termination = None
-        inst.end_input = pyvisa.constants.SerialTermination.none
-        # TODO: Change this to be more efficient for huge datasets
-        with inst.ignore_warning(pyvisa.constants.VI_SUCCESS_MAX_CNT):
-            s = inst.visalib.read(inst.session, 2)  # read first 2 bytes
-            num_bytes = int(inst.visalib.read(inst.session, int(s[0][1]))[0])
-            buf = ''
-            while len(buf) < num_bytes:
-                raw_bin, _ = inst.visalib.read(inst.session, num_bytes-len(buf))
-                buf += raw_bin
-                print(len(raw_bin))
-        inst.end_input = pyvisa.constants.SerialTermination.termination_char
-        inst.read_termination = '\n'
-        inst.read()  # Eat termination
-        inst.timeout = tmo
-        raw_data_y = np.frombuffer(buf, dtype='>i2', count=int(num_bytes//2))
-
-        # Get scale and offset factors
-        x_scale = float(inst.query("wfmpre:xincr?"))
-        y_scale = float(inst.query("wfmpre:ymult?"))
-        x_zero = float(inst.query("wfmpre:xzero?"))
-        y_zero = float(inst.query("wfmpre:yzero?"))
-        x_offset = float(inst.query("wfmpre:pt_off?"))
-        y_offset = float(inst.query("wfmpre:yoff?"))
-
-        x_unit_str = inst.query("wfmpre:xunit?")[1:-1]
-        y_unit_str = inst.query("wfmpre:yunit?")[1:-1]
-
-        unit_map = {
-            'U': '',
-            'Volts': 'V'
-        }
-
-        x_unit_str = unit_map.get(x_unit_str, x_unit_str)
-        try:
-            x_unit = u.parse_units(x_unit_str)
-        except UndefinedUnitError:
-            x_unit = u.dimensionless
-
-        y_unit_str = unit_map.get(y_unit_str, y_unit_str)
-        try:
-            y_unit = u.parse_units(y_unit_str)
-        except UndefinedUnitError:
-            y_unit = u.dimensionless
-
-        raw_data_x = np.arange(1, stop+1)
-
-        data_x = Q_((raw_data_x - x_offset)*x_scale + x_zero, x_unit)
-        data_y = Q_((raw_data_y - y_offset)*y_scale + y_zero, y_unit)
-
-        return data_x, data_y
-
-    def set_measurement_params(self, num, mtype, channel):
-        """Set the parameters for a measurement.
-
-        Parameters
-        ----------
-        num : int
-            Measurement number to set, from 1-4.
-        mtype : str
-            Type of the measurement, e.g. 'amplitude'
-        channel : int
-            Number of the channel to measure.
-        """
-        prefix = 'measurement:meas{}'.format(num)
-        self.inst.write("{}:type {};source ch{}".format(prefix, mtype,
-                                                        channel))
+    # def get_data(self, channel=1):
+    #     """Retrieve a trace from the scope.
+    #
+    #     Pulls data from channel `channel` and returns it as a tuple ``(t,y)``
+    #     of unitful arrays.
+    #
+    #     Parameters
+    #     ----------
+    #     channel : int, optional
+    #         Channel number to pull trace from. Defaults to channel 1.
+    #
+    #     Returns
+    #     -------
+    #     t, y : pint.Quantity arrays
+    #         Unitful arrays of data from the scope. ``t`` is in seconds, while
+    #         ``y`` is in volts.
+    #     """
+    #     # inst = self.inst
+    #     self._rsrc.timeout = 10000
+    #
+    #     self.write("data:source ch{}".format(channel))
+    #     stop = int(self.query("wfmpre:nr_pt?"))  # Get source's number of points
+    #     stop = 10000
+    #     self.write("data:width 2")
+    #     self.write("data:encdg RIBinary")
+    #     self.write("data:start 1")
+    #     self.write("data:stop {}".format(stop))
+    #
+    #     #inst.flow_control = 1  # Soft flagging (XON/XOFF flow control)
+    #     tmo = self.timeout
+    #     self.timeout = 10000
+    #     self.write("curve?")
+    #     self.read_termination = None
+    #     self.end_input = pyvisa.constants.SerialTermination.none
+    #     # TODO: Change this to be more efficient for huge datasets
+    #     with self.ignore_warning(pyvisa.constants.VI_SUCCESS_MAX_CNT):
+    #         s = self.visalib.read(self.session, 2)  # read first 2 bytes
+    #         num_bytes = int(self.visalib.read(self.session, int(s[0][1]))[0])
+    #         buf = ''
+    #         while len(buf) < num_bytes:
+    #             raw_bin, _ = self.visalib.read(self.session, num_bytes-len(buf))
+    #             buf += raw_bin
+    #             print(len(raw_bin))
+    #     self.end_input = pyvisa.constants.SerialTermination.termination_char
+    #     self.read_termination = '\n'
+    #     self.read()  # Eat termination
+    #     self.timeout = tmo
+    #     raw_data_y = np.frombuffer(buf, dtype='>i2', count=int(num_bytes//2))
+    #
+    #     # Get scale and offset factors
+    #     x_scale = float(self.query("wfmpre:xincr?"))
+    #     y_scale = float(self.query("wfmpre:ymult?"))
+    #     x_zero = float(self.query("wfmpre:xzero?"))
+    #     y_zero = float(self.query("wfmpre:yzero?"))
+    #     x_offset = float(self.query("wfmpre:pt_off?"))
+    #     y_offset = float(self.query("wfmpre:yoff?"))
+    #
+    #     x_unit_str = self.query("wfmpre:xunit?")[1:-1]
+    #     y_unit_str = self.query("wfmpre:yunit?")[1:-1]
+    #
+    #     unit_map = {
+    #         'U': '',
+    #         'Volts': 'V'
+    #     }
+    #
+    #     x_unit_str = unit_map.get(x_unit_str, x_unit_str)
+    #     try:
+    #         x_unit = u.parse_units(x_unit_str)
+    #     except UndefinedUnitError:
+    #         x_unit = u.dimensionless
+    #
+    #     y_unit_str = unit_map.get(y_unit_str, y_unit_str)
+    #     try:
+    #         y_unit = u.parse_units(y_unit_str)
+    #     except UndefinedUnitError:
+    #         y_unit = u.dimensionless
+    #
+    #     raw_data_x = np.arange(1, stop+1)
+    #
+    #     data_x = Q_((raw_data_x - x_offset)*x_scale + x_zero, x_unit)
+    #     data_y = Q_((raw_data_y - y_offset)*y_scale + y_zero, y_unit)
+    #
+    #     return data_x, data_y
 
     def read_measurement_stats(self, num):
         """
